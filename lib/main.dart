@@ -145,6 +145,7 @@ class _InventoryPageState extends State<InventoryPage> {
   String? _category;
   String _keyword = '';
   String _filterCategory = 'All';
+  DateTime? _filterDate;
   bool _lowStockOnly = false;
   bool _ascending = true;
   bool _saving = false;
@@ -282,11 +283,40 @@ class _InventoryPageState extends State<InventoryPage> {
     }
   }
 
+  Future<void> _pickFilterDate() async {
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _filterDate ?? now,
+      firstDate: DateTime(2000),
+      lastDate: DateTime(now.year + 10),
+      helpText: 'Filter by stock creation date',
+      cancelText: 'CANCEL',
+      confirmText: 'APPLY',
+    );
+
+    if (!mounted || picked == null) return;
+    setState(() => _filterDate = DateTime(picked.year, picked.month, picked.day));
+  }
+
+  bool _isSameLocalDate(DateTime timestamp, DateTime selectedDate) {
+    final localTimestamp = timestamp.toLocal();
+    return localTimestamp.year == selectedDate.year &&
+        localTimestamp.month == selectedDate.month &&
+        localTimestamp.day == selectedDate.day;
+  }
+
+  String _formatFilterDate(DateTime date) {
+    String twoDigits(int number) => number.toString().padLeft(2, '0');
+    return '${twoDigits(date.day)}/${twoDigits(date.month)}/${date.year}';
+  }
+
   void _clearFilters() {
     _searchController.clear();
     setState(() {
       _keyword = '';
       _filterCategory = 'All';
+      _filterDate = null;
       _lowStockOnly = false;
       _ascending = true;
     });
@@ -620,7 +650,13 @@ class _InventoryPageState extends State<InventoryPage> {
               _filterCategory == 'All' || item.category == _filterCategory;
           final matchesLowStock =
               !_lowStockOnly || item.quantity <= item.reorderLevel;
-          return matchesKeyword && matchesCategory && matchesLowStock;
+          final matchesDate = _filterDate == null ||
+              (item.createdAt != null &&
+                  _isSameLocalDate(item.createdAt!, _filterDate!));
+          return matchesKeyword &&
+              matchesCategory &&
+              matchesLowStock &&
+              matchesDate;
         }).toList()
           ..sort((a, b) {
             final byQuantity = _ascending
@@ -712,6 +748,42 @@ class _InventoryPageState extends State<InventoryPage> {
                           ),
                         ),
                       ),
+                      OutlinedButton.icon(
+                        onPressed: _pickFilterDate,
+                        icon: const Icon(Icons.calendar_month_outlined, size: 18),
+                        label: Text(
+                          _filterDate == null
+                              ? 'Created date'
+                              : _formatFilterDate(_filterDate!),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: _filterDate == null
+                              ? const Color(0xFF526562)
+                              : _primary,
+                          backgroundColor: _filterDate == null
+                              ? Colors.white
+                              : const Color(0xFFE8F4F1),
+                          side: BorderSide(
+                            color: _filterDate == null
+                                ? const Color(0xFFDCE6E4)
+                                : const Color(0xFF9CCFC3),
+                          ),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 15,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      ),
+                      if (_filterDate != null)
+                        IconButton(
+                          tooltip: 'Clear created date filter',
+                          onPressed: () => setState(() => _filterDate = null),
+                          icon: const Icon(Icons.close_rounded),
+                          color: _muted,
+                        ),
                       FilterChip(
                         selected: _lowStockOnly,
                         showCheckmark: true,
