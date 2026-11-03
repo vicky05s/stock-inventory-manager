@@ -964,6 +964,15 @@ class _InventoryPageState extends State<InventoryPage> {
     );
   }
 
+  String _formatCreatedAt(DateTime value) {
+    final local = value.toLocal();
+    String twoDigits(int number) => number.toString().padLeft(2, '0');
+
+    return '${local.year}-${twoDigits(local.month)}-${twoDigits(local.day)} '
+        '${twoDigits(local.hour)}:${twoDigits(local.minute)}:${twoDigits(local.second)} '
+        '(local time)';
+  }
+
   Widget _itemCard(StockItem item) {
     final isLowStock = item.quantity <= item.reorderLevel;
     final statusColor =
@@ -1071,6 +1080,32 @@ class _InventoryPageState extends State<InventoryPage> {
               _itemMetric(
                   'UNIT PRICE', 'RM ${item.unitPrice.toStringAsFixed(2)}'),
               _itemMetric('REORDER LEVEL', '${item.reorderLevel} units'),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Container(height: 1, color: const Color(0xFFEEF1F1)),
+          const SizedBox(height: 10),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(
+                Icons.schedule_rounded,
+                size: 15,
+                color: _muted,
+              ),
+              const SizedBox(width: 7),
+              Expanded(
+                child: Text(
+                  item.createdAt == null
+                      ? 'Created at: Timestamp not available'
+                      : 'Created at: ${_formatCreatedAt(item.createdAt!)}',
+                  style: const TextStyle(
+                    color: _muted,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
             ],
           ),
         ],
@@ -1239,6 +1274,7 @@ class StockItem {
     required this.quantity,
     required this.unitPrice,
     required this.reorderLevel,
+    required this.createdAt,
   });
 
   final String id;
@@ -1248,6 +1284,7 @@ class StockItem {
   final int quantity;
   final double unitPrice;
   final int reorderLevel;
+  final DateTime? createdAt;
 
   factory StockItem.fromMap(String id, Map<String, dynamic> data) {
     int toInt(dynamic value) => value is num
@@ -1256,6 +1293,11 @@ class StockItem {
     double toDouble(dynamic value) => value is num
         ? value.toDouble()
         : double.tryParse(value?.toString() ?? '') ?? 0.0;
+    DateTime? toDateTime(dynamic value) {
+      if (value is Timestamp) return value.toDate();
+      if (value is DateTime) return value;
+      return null;
+    }
 
     return StockItem(
       id: id,
@@ -1265,6 +1307,7 @@ class StockItem {
       quantity: toInt(data['quantity']),
       unitPrice: toDouble(data['unitPrice']),
       reorderLevel: toInt(data['reorderLevel']),
+      createdAt: toDateTime(data['createdAt']),
     );
   }
 }
